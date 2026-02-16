@@ -2,7 +2,7 @@
 set -e
 
 echo "========================================="
-echo " Client Overview Plugin v5 — Installer"
+echo " Client Overview Plugin v12 — Installer"
 echo "========================================="
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -38,6 +38,14 @@ cp "${SRC}/opnsense/scripts/clientoverview/list_clients.py" \
    /usr/local/opnsense/scripts/clientoverview/
 chmod +x /usr/local/opnsense/scripts/clientoverview/list_clients.py
 
+# Preserve user data files across reinstalls
+for f in topology.json custom_devices.json known_devices.json vendor_cache.json; do
+    if [ -f "/usr/local/opnsense/scripts/clientoverview/$f" ]; then
+        chown root:wheel "/usr/local/opnsense/scripts/clientoverview/$f"
+        echo "  -> Preserved $f"
+    fi
+done
+
 echo "[5/8] Icons directory..."
 # Create icons dir (preserves existing icons on reinstall)
 mkdir -p /usr/local/opnsense/www/clientoverview/icons
@@ -65,6 +73,13 @@ cp "${SRC}/etc/inc/plugins.inc.d/clientoverview.inc" \
 
 # Clear stale caches
 rm -f /usr/local/opnsense/scripts/clientoverview/fp_match_cache.json 2>/dev/null || true
+
+# IMPORTANT: Clear OPNsense's compiled Volt template cache
+# Without this, the old compiled template keeps getting served
+rm -f /tmp/Phalcon/volt/*.php 2>/dev/null || true
+rm -f /tmp/Phalcon/volt/**/*.php 2>/dev/null || true
+find /tmp -path "*/Phalcon/volt*" -name "*.php" -delete 2>/dev/null || true
+echo "  -> Cleared Volt template cache"
 
 echo ""
 echo "Restarting configd..."

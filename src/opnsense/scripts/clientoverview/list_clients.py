@@ -3,7 +3,7 @@
 Client Overview v12 - Device classification, fingerprint icons, WoL.
 """
 
-import json, csv, os, subprocess, re, time, glob, sys
+import json, csv, os, subprocess, re, time, glob, sys, ipaddress
 
 KEA_LEASE4_FILE = '/var/db/kea/kea-leases4.csv'
 KEA_LEASE4_FILE_ALT = '/var/lib/kea/dhcp4.leases'
@@ -264,7 +264,9 @@ def load_vendor_cache():
 
 def save_vendor_cache(c):
     try:
-        with open(VENDOR_CACHE, 'w') as f: json.dump(c, f)
+        tmp = VENDOR_CACHE + '.tmp'
+        with open(tmp, 'w') as f: json.dump(c, f)
+        os.replace(tmp, VENDOR_CACHE)
     except: pass
 
 def get_vendor(mac, oui_db, vcache):
@@ -361,7 +363,6 @@ def get_reservations():
 
 def get_subnets():
     """Build a list of subnets with VLAN IDs from Kea config."""
-    import ipaddress
     subnets = []
     cf = '/usr/local/etc/kea/kea-dhcp4.conf'
     if os.path.exists(cf):
@@ -388,7 +389,6 @@ def get_subnets():
 
 def ip_to_vlan(ip, subnets):
     """Find which VLAN/subnet an IP belongs to."""
-    import ipaddress
     try:
         addr = ipaddress.ip_address(ip)
         for s in subnets:
@@ -521,10 +521,12 @@ def cmd_list():
                 'vlan': ip_to_vlan(kd.get('ip', ''), subnets),
             }
 
-    # Save known devices
+    # Save known devices (atomic write to prevent corruption)
     try:
-        with open(KNOWN_DEVICES_FILE, 'w') as f:
+        tmp = KNOWN_DEVICES_FILE + '.tmp'
+        with open(tmp, 'w') as f:
             json.dump(known, f)
+        os.replace(tmp, KNOWN_DEVICES_FILE)
     except: pass
 
     out = []
@@ -574,7 +576,6 @@ def cmd_wol():
     try:
         subnets = get_subnets()
         targets = set(['255.255.255.255'])
-        import ipaddress
         for s in subnets:
             try:
                 net = s['net']

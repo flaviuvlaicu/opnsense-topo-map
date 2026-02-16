@@ -213,27 +213,46 @@ class ServiceController extends ApiControllerBase
     {
         $result = ['status' => 'error'];
         if ($this->request->isPost()) {
-            // Try POST param first (without sanitizer that strips JSON)
-            $json = $this->request->getPost('topology');
-            if (empty($json)) {
-                // Fallback: try raw body
-                $json = $this->request->getRawBody();
+            $json = null;
+
+            // Method 1: Direct $_POST access (bypasses Phalcon sanitizer)
+            if (!empty($_POST['topology'])) {
+                $json = $_POST['topology'];
             }
+
+            // Method 2: Try raw body as JSON
+            if (empty($json)) {
+                $raw = $this->request->getRawBody();
+                if (!empty($raw)) {
+                    // Could be raw JSON body
+                    $test = json_decode($raw, true);
+                    if (is_array($test) && isset($test['nodes'])) {
+                        $json = $raw;
+                    } else {
+                        // Could be form-encoded: topology=...
+                        parse_str($raw, $parsed);
+                        if (!empty($parsed['topology'])) {
+                            $json = $parsed['topology'];
+                        }
+                    }
+                }
+            }
+
             if (!empty($json)) {
                 $data = json_decode($json, true);
-                if (is_array($data)) {
+                if (is_array($data) && isset($data['nodes'])) {
                     $dir = dirname($this->topoFile);
                     if (!is_dir($dir)) @mkdir($dir, 0755, true);
-                    if (file_put_contents($this->topoFile, json_encode($data, JSON_PRETTY_PRINT)) !== false) {
-                        $result = ['status' => 'ok'];
+                    if (file_put_contents($this->topoFile, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX) !== false) {
+                        $result = ['status' => 'ok', 'saved_nodes' => count((array)$data['nodes'])];
                     } else {
                         $result['message'] = 'write failed';
                     }
                 } else {
-                    $result['message'] = 'invalid json';
+                    $result['message'] = 'invalid json: ' . substr($json, 0, 100);
                 }
             } else {
-                $result['message'] = 'no data';
+                $result['message'] = 'no data received';
             }
         }
         return $result;
@@ -254,7 +273,7 @@ class ServiceController extends ApiControllerBase
                     $known = json_decode(file_get_contents($knownFile), true);
                     if (is_array($known) && isset($known[$mac])) {
                         unset($known[$mac]);
-                        file_put_contents($knownFile, json_encode($known, JSON_PRETTY_PRINT));
+                        file_put_contents($knownFile, json_encode($known, JSON_PRETTY_PRINT), LOCK_EX);
                     }
                 }
                 // Also remove from custom devices
@@ -275,7 +294,7 @@ class ServiceController extends ApiControllerBase
                                 $n['port'] = null;
                             }
                         }
-                        file_put_contents($this->topoFile, json_encode($topo, JSON_PRETTY_PRINT));
+                        file_put_contents($this->topoFile, json_encode($topo, JSON_PRETTY_PRINT), LOCK_EX);
                     }
                 }
                 $result = ['status' => 'ok'];
@@ -317,6 +336,6 @@ class ServiceController extends ApiControllerBase
     }
 
     private function saveCustom($d) {
-        file_put_contents($this->customFile, json_encode($d, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($this->customFile, json_encode($d, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
     }
 }

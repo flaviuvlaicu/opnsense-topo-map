@@ -1,1 +1,2 @@
+*.tar.gz filter=lfs diff=lfs merge=lfs -text
 unifi-icons-images.tar.gz filter=lfs diff=lfs merge=lfs -text

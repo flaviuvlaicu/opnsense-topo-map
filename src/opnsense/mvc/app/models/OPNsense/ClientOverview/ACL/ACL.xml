@@ -1,0 +1,9 @@
+<acl>
+    <page-services-clientoverview>
+        <n>Services: Client Overview</n>
+        <patterns>
+            <pattern>/ui/clientoverview*</pattern>
+            <pattern>/api/clientoverview/*</pattern>
+        </patterns>
+    </page-services-clientoverview>
+</acl>

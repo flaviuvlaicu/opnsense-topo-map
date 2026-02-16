@@ -1,0 +1,7 @@
+<menu>
+    <Services>
+        <ClientOverview VisibleName="Client Overview" cssClass="fa fa-desktop" url="/ui/clientoverview" order="99">
+            <Dashboard VisibleName="Dashboard" url="/ui/clientoverview" />
+        </ClientOverview>
+    </Services>
+</menu>
